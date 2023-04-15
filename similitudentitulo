@@ -1,0 +1,78 @@
+import pandas as pd
+import numpy as np
+import jellyfish
+import fuzzywuzzy.fuzz as fuzz
+from collections import defaultdict
+
+# Cargar archivo Excel
+df = pd.read_excel('/content/archivo.xlsx')
+
+# Definir columna a analizar
+columna = 'Título'
+
+# Crear una nueva columna con valores en blanco para la agrupación
+df['Grupo'] = np.nan
+
+# Definir umbral de similitud
+umbral = 1.0
+
+# Crear diccionario para almacenar índice invertido
+indice_invertido = defaultdict(list)
+
+# Llenar el índice invertido
+for i, fila in df.iterrows():
+    texto1 = str(fila[columna])
+    if texto1 == '':
+        continue
+    for palabra in texto1.split():
+        indice_invertido[palabra].append(i)
+        
+# Crear conjunto para almacenar las filas ya agrupadas
+filas_agrupadas = set()
+
+# Iterar sobre las filas del DataFrame
+for i, fila in df.iterrows():
+
+    # Obtener el texto de la celda de la columna a analizar
+    texto1 = str(fila[columna])
+
+    # Si la celda está vacía o ya fue agrupada, continuar con la siguiente fila
+    if texto1 == '' or i in filas_agrupadas:
+        continue
+
+    # Crear una lista para almacenar las filas similares
+    filas_similares = [i]
+
+    # Iterar sobre las palabras del texto para buscar en el índice invertido
+    for palabra in texto1.split():
+        filas_coincidentes = indice_invertido[palabra]
+        for j in filas_coincidentes:
+
+            # Si la fila ya fue agrupada o es la misma que se está comparando, continuar con la siguiente fila
+            if j in filas_agrupadas or j == i:
+                continue
+
+            # Obtener el texto de la celda de la columna a comparar
+            texto2 = str(df.loc[j, columna])
+
+            # Si la celda está vacía, continuar con la siguiente fila
+            if texto2 == '':
+                continue
+
+            # Contar el número de palabras iguales entre los textos
+            palabras_iguales = set(texto1.split()).intersection(set(texto2.split()))
+
+            # Si el número de palabras iguales es mayor o igual a 4, agregar la fila a la lista
+            if len(palabras_iguales) >= 4:
+                filas_similares.append(j)
+
+    # Actualizar la columna de agrupación con un valor único para cada grupo
+    grupo = np.min(filas_similares)
+    df.loc[filas_similares, 'Grupo'] = grupo
+    filas_agrupadas.update(filas_similares)
+
+# Eliminar las filas duplicadas
+df.drop_duplicates(subset='Título', keep='first', inplace=True)
+
+# Guardar el DataFrame en un nuevo archivo Excel
+df.to_excel('/content/Archivo_agrupado.xlsx', index=False)
