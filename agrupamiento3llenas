@@ -1,0 +1,51 @@
+import pandas as pd
+import nltk
+from nltk.corpus import stopwords
+
+# Descargar las stopwords si no se han descargado ya
+nltk.download('stopwords')
+
+# Leer el archivo Excel
+df = pd.read_excel('/content/archivo.xlsx')
+
+# Obtener el índice de la columna "Título"
+titulo_index = df.columns.get_loc("Título")
+
+# Obtener las stopwords en español
+stop_words = set(stopwords.words('spanish'))
+
+# Eliminar las stopwords de cada celda de la columna "Título"
+for i in range(len(df)):
+    titulo = df.iloc[i, titulo_index]
+    titulo_sin_stopwords = [word for word in titulo.split() if word.lower() not in stop_words]
+    df.iloc[i, titulo_index] = ' '.join(titulo_sin_stopwords)
+
+# Crear un diccionario para almacenar los grupos
+grupos = {}
+
+# Comparar cada fila con todas las demás y asignarles un grupo si tienen 4 o más palabras iguales
+for i in range(len(df)):
+    titulo_i = df.iloc[i, titulo_index]
+    if i not in grupos:
+        grupo_actual = len(grupos) + 1
+        grupos[i] = grupo_actual
+    else:
+        grupo_actual = grupos[i]
+    for j in range(i+1, len(df)):
+        titulo_j = df.iloc[j, titulo_index]
+        palabras_iguales = set(titulo_i.lower().split()) & set(titulo_j.lower().split())
+        if len(palabras_iguales) >= 3:
+            if j not in grupos:
+                grupos[j] = grupo_actual
+            else:
+                grupo_j = grupos[j]
+                if grupo_j != grupo_actual:
+                    for k, v in grupos.items():
+                        if v == grupo_j:
+                            grupos[k] = grupo_actual
+
+# Agregar una columna al DataFrame para mostrar los grupos
+df['Grupo'] = [grupos[i] for i in range(len(df))]
+
+# Escribir el resultado en un nuevo archivo Excel
+df.to_excel('/content/resultado.xlsx', index=False)
