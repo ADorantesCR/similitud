@@ -17,8 +17,10 @@ stop_words = set(stopwords.words('spanish'))
 # Eliminar las stopwords de cada celda de la columna "Título"
 for i in range(len(df)):
     titulo = df.iloc[i, titulo_index]
+    titulo = titulo.replace(".", "").replace(",", "").replace(";", "") # Nueva línea
     titulo_sin_stopwords = [word for word in titulo.split() if word.lower() not in stop_words]
     df.iloc[i, titulo_index] = ' '.join(titulo_sin_stopwords)
+
 
 # Crear un diccionario para almacenar los grupos
 grupos = {}
