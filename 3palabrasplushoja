@@ -18,7 +18,8 @@ stop_words = set(stopwords.words('spanish'))
 new_titulos = []
 for i in range(len(df)):
     titulo = df.iloc[i, titulo_index]
-    titulo_limpio = titulo.replace(".", "").replace(",", "").replace(";", "")
+    import re
+    titulo_limpio = re.sub('[^\w\s]', '', titulo)
     titulo_sin_stopwords = [word for word in titulo_limpio.split() if word.lower() not in stop_words]
     new_titulo = ' '.join(titulo_sin_stopwords)
     new_titulos.append(new_titulo)
