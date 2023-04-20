@@ -1,0 +1,111 @@
+import pandas as pd
+import nltk
+from nltk.corpus import stopwords
+
+
+
+# Cargar los dos archivos de Excel
+df1 = pd.read_excel('/content/archivo1.xlsx')
+df2 = pd.read_excel('/content/archivo2.xlsx')
+
+# Eliminar las dos primeras filas de ambos dataframes
+df1 = df1.iloc[2:]
+df2 = df2.iloc[2:]
+
+# Unir los dos dataframes en uno solo
+df_final = pd.concat([df1, df2], axis=0)
+
+# Agregar las cabeceras al dataframe final
+cabeceras = ['Id', 'Fecha', 'Hora', 'Mes', 'Año', 'Medio', 'Estado', 'País', 'Municipio', 'Tipo de medio', 'Subtemas', 'Autor', 'Genero', 'Título', 'Resumen', 'Transcripción', 'Programa', 'Duración', 'Sección', 'Página', 'Precio', 'URL del testigo', 'Vista previa', 'Tiers', 'Tiraje', 'Alcance', 'Reach', 'Área cm2', 'Zip de imágenes', 'PDF de imágenes']
+df_final.columns = cabeceras
+
+# Escribir el dataframe final en un archivo de Excel
+df_final.to_excel('/content/archivo.xlsx', index=False)
+
+
+
+# Descargar las stopwords si no se han descargado ya
+nltk.download('stopwords')
+
+# Leer el archivo Excel
+df = pd.read_excel('/content/archivo.xlsx')
+
+# Obtener el índice de la columna "Título"
+titulo_index = df.columns.get_loc("Título")
+
+# Obtener las stopwords en español
+stop_words = set(stopwords.words('spanish'))
+
+# Eliminar las stopwords de cada celda de la columna "Título"
+new_titulos = []
+for i in range(len(df)):
+    titulo = df.iloc[i, titulo_index]
+    import re
+    titulo_limpio = re.sub('[^\w\s]', '', titulo)
+    titulo_sin_stopwords = [word for word in titulo_limpio.split() if word.lower() not in stop_words]
+    new_titulo = ' '.join(titulo_sin_stopwords)
+    new_titulos.append(new_titulo)
+
+# Agregar la columna "Título limpio" al DataFrame
+df["Título limpio"] = new_titulos
+
+# Crear un diccionario para almacenar los grupos
+grupos = {}
+
+# Comparar cada fila con todas las demás y asignarles un grupo si tienen 4 o más palabras iguales
+for i in range(len(df)):
+    titulo_i = df.iloc[i, df.columns.get_loc("Título limpio")]
+    if i not in grupos:
+        grupo_actual = len(grupos) + 1
+        grupos[i] = grupo_actual
+    else:
+        grupo_actual = grupos[i]
+    for j in range(i+1, len(df)):
+        titulo_j = df.iloc[j, df.columns.get_loc("Título limpio")]
+        palabras_iguales = set(titulo_i.lower().split()) & set(titulo_j.lower().split())
+        if len(palabras_iguales) >= 3:
+            if j not in grupos:
+                grupos[j] = grupo_actual
+            else:
+                grupo_j = grupos[j]
+                if grupo_j != grupo_actual:
+                    for k, v in grupos.items():
+                        if v == grupo_j:
+                            grupos[k] = grupo_actual
+
+# Agregar una columna al DataFrame para mostrar los grupos
+df['Grupo'] = [grupos[i] for i in range(len(df))]
+
+
+# Escribir el resultado en un nuevo archivo Excel
+df.to_excel('/content/resultado.xlsx', index=False)
+
+print(f"El número de grupos diferentes es: {len(set(grupos.values()))}")
+
+
+
+import pandas as pd
+
+# Leer el archivo Excel
+df = pd.read_excel('/content/resultado.xlsx')
+
+# Obtener los grupos únicos
+grupos_unicos = set(df['Grupo'])
+
+# Crear un DataFrame con una fila de cada grupo
+df_nuevo = pd.DataFrame(columns=['Medio', 'Estado', 'Título', 'URL del testigo', 'Grupo'])
+
+for grupo in grupos_unicos:
+    df_fila = df[df['Grupo'] == grupo].iloc[0][['Medio', 'Estado', 'Título', 'URL del testigo', 'Grupo']]
+    df_nuevo = df_nuevo.append(df_fila, ignore_index=True)
+
+# Agregar una nueva columna que muestra la cantidad de filas en cada grupo
+count_filas = df.groupby('Grupo').size()
+df_nuevo['Cantidad de filas'] = df_nuevo['Grupo'].map(count_filas)
+
+# Ordenar el DataFrame por la columna "Cantidad de filas" de mayor a menor
+df_nuevo = df_nuevo.sort_values('Cantidad de filas', ascending=False)
+
+# Escribir el resultado en una nueva hoja del archivo Excel existente
+with pd.ExcelWriter('/content/resultado.xlsx', mode='a') as writer:
+    df_nuevo.to_excel(writer, sheet_name='Grupos únicos', index=False)
